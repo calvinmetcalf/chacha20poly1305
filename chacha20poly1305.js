@@ -396,21 +396,14 @@ function aead_encrypt(ctx, nonce, input, ad) {
 function aead_decrypt(ctx, nonce, ciphertext, ad) {
   var c = new Chacha20Ctx();
   var key = aead_init(c, ctx.key, nonce);
+  var clen = ciphertext.length - Poly1305TagSize;
+  var digest = ciphertext.slice(clen);
+  var mac = aead_mac(key, ciphertext.slice(0, clen), ad);
 
-  var clen = ciphertext.length;
-  var digest = ciphertext.slice(clen - Poly1305TagSize);
-
-  ciphertext = ciphertext.slice(0, clen - Poly1305TagSize);
-
-  var mac = aead_mac(key, ciphertext, ad);
-
-  if (poly1305_verify(mac, digest) !== 1) {
-    return false;
-  }
+  if (poly1305_verify(digest, mac) !== 1) return false;
 
   var out = [];
-  chacha20_decrypt(c, out, ciphertext, ciphertext.length);
-
+  chacha20_decrypt(c, out, ciphertext, clen);
   return out;
 }
 
