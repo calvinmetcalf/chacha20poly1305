@@ -4,37 +4,37 @@ class Chacha20 {
 
 	protected $input;
 
-	function __construct() {
+	public function __construct() {
 		$this->input = new SplFixedArray(16);
 	}
 
-	function load32($x, $i) {
+	protected function load32($x, $i) {
 		return $x[$i] | ($x[$i+1]<<8) | ($x[$i+2]<<16) | ($x[$i+3]<<24);
 	}
 
-	function store32($x, $i, $u) {
+	protected function store32($x, $i, $u) {
 		$x[$i]   = $u & 0xff; $u >>= 8;
 		$x[$i+1] = $u & 0xff; $u >>= 8;
 		$x[$i+2] = $u & 0xff; $u >>= 8;
 		$x[$i+3] = $u & 0xff;
 	}
 
-	function plus($a, $b) {
+	protected function plus($a, $b) {
 		return ($a + $b) & 0xffffffff;
 	}
 
-	function rotl32($v, $c) {
+	protected function rotl32($v, $c) {
 		return (($v << $c) & 0xffffffff) | ($v >> (32 - $c));
 	}
 
-	function round($x, $a, $b, $c, $d) {
+	protected function round($x, $a, $b, $c, $d) {
 		$x[$a] = $this->plus($x[$a], $x[$b]); $x[$d] = $this->rotl32($x[$d] ^ $x[$a], 16);
 		$x[$c] = $this->plus($x[$c], $x[$d]); $x[$b] = $this->rotl32($x[$b] ^ $x[$c], 12);
 		$x[$a] = $this->plus($x[$a], $x[$b]); $x[$d] = $this->rotl32($x[$d] ^ $x[$a],  8);
 		$x[$c] = $this->plus($x[$c], $x[$d]); $x[$b] = $this->rotl32($x[$b] ^ $x[$c],  7);
 	}
 
-	function keysetup($key) {
+	public function keysetup($key) {
 		$this->input[0] = 1634760805;
 		$this->input[1] =  857760878;
 		$this->input[2] = 2036477234;
@@ -44,14 +44,14 @@ class Chacha20 {
 		}
 	}
 
-	function ivsetup($iv) {
+	public function ivsetup($iv) {
 		$this->input[12] = 0;
 		$this->input[13] = 0;
 		$this->input[14] = $this->load32($iv, 0);
 		$this->input[15] = $this->load32($iv, 4);
 	}
 
-	function encrypt($dst, $src, $len) {
+	public function encrypt($dst, $src, $len) {
 		$x = new SplFixedArray(16);
 		$buf = new SplFixedArray(64);
 		$i = 0; $dpos = 0; $spos = 0;
@@ -91,11 +91,11 @@ class Chacha20 {
 		}
 	}
 
-	function decrypt($dst, $src, $len) {
+	public function decrypt($dst, $src, $len) {
 		$this->encrypt($dst, $src, $len);
 	}
 
-	function keystream($dst, $len) {
+	public function keystream($dst, $len) {
 		for ($i = $len; $i--;) $dst[$i] = 0;
 		$this->encrypt($dst, $dst, $len);
 	}
