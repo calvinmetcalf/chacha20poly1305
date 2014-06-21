@@ -23,15 +23,19 @@ function store32(x, i, u) {
   x[i+3] = u & 0xff;
 }
 
-function rotl32(v, c) {
-  return (v << c) | (v >>> (32 - c));
+function plus(v, w) {
+  return (v + w) >>> 0;
 }
 
-function chacha20_round(x, a, b, c, d) {
-  x[a] += x[b]; x[d] = rotl32(x[d] ^ x[a], 16);
-  x[c] += x[d]; x[b] = rotl32(x[b] ^ x[c], 12);
-  x[a] += x[b]; x[d] = rotl32(x[d] ^ x[a],  8);
-  x[c] += x[d]; x[b] = rotl32(x[b] ^ x[c],  7);
+function rotl32(v, c) {
+  return ((v << c) >>> 0) | (v >>> (32 - c));
+}
+
+function quarterRound(x, a, b, c, d) {
+  x[a] = plus(x[a], x[b]); x[d] = rotl32(x[d] ^ x[a], 16);
+  x[c] = plus(x[c], x[d]); x[b] = rotl32(x[b] ^ x[c], 12);
+  x[a] = plus(x[a], x[b]); x[d] = rotl32(x[d] ^ x[a],  8);
+  x[c] = plus(x[c], x[d]); x[b] = rotl32(x[b] ^ x[c],  7);
 }
 
 function chacha20_keysetup(ctx, key) {
@@ -51,7 +55,7 @@ function chacha20_ivsetup(ctx, iv) {
   ctx.input[15] = load32(iv, 4);
 }
 
-function chacha20_keystream(ctx, dst, src, len) {
+function chacha20_encrypt(ctx, dst, src, len) {
   var x = new Array(16);
   var buf = new Array(64);
   var i = 0, dpos = 0, spos = 0;
@@ -59,21 +63,21 @@ function chacha20_keystream(ctx, dst, src, len) {
   while (len > 0 ) {
     for (i = 16; i--;) x[i] = ctx.input[i];
     for (i = 20; i > 0; i -= 2) {
-      chacha20_round(x, 0, 4, 8,12);
-      chacha20_round(x, 1, 5, 9,13);
-      chacha20_round(x, 2, 6,10,14);
-      chacha20_round(x, 3, 7,11,15);
-      chacha20_round(x, 0, 5,10,15);
-      chacha20_round(x, 1, 6,11,12);
-      chacha20_round(x, 2, 7, 8,13);
-      chacha20_round(x, 3, 4, 9,14);
+      quarterRound(x, 0, 4, 8,12);
+      quarterRound(x, 1, 5, 9,13);
+      quarterRound(x, 2, 6,10,14);
+      quarterRound(x, 3, 7,11,15);
+      quarterRound(x, 0, 5,10,15);
+      quarterRound(x, 1, 6,11,12);
+      quarterRound(x, 2, 7, 8,13);
+      quarterRound(x, 3, 4, 9,14);
     }
     for (i = 16; i--;) x[i] += ctx.input[i];
     for (i = 16; i--;) store32(buf, 4*i, x[i]);
 
-    ctx.input[12] += 1;
+    ctx.input[12] = plus(ctx.input[12], 1);
     if (!ctx.input[12]) {
-      ctx.input[13] += 1;
+      ctx.input[13] = plus(ctx.input[13], 1);
     }
     if (len <= 64) {
       for (i = len; i--;) {
@@ -90,6 +94,15 @@ function chacha20_keystream(ctx, dst, src, len) {
   }
 }
 
+function chacha20_decrypt(ctx, dst, src, len) {
+  chacha20_encrypt(ctx, dst, src, len);
+}
+
+function chacha20_keystream(ctx, dst, len) {
+  for (var i = 0; i < len; ++i) dst[i] = 0;
+  chacha20_encrypt(ctx, dst, dst, len);
+}
+
 /* poly1305 */
  
 // Written in 2014 by Devi Mandiri. Public domain.
@@ -97,10 +110,11 @@ function chacha20_keystream(ctx, dst, src, len) {
 // Implementation derived from poly1305-donna-16.h
 // See for details: https://github.com/floodyberry/poly1305-donna
  
-var Poly1305BlockSize = 16;
+var Poly1305KeySize = 32;
+var Poly1305TagSize = 16;
  
 var Poly1305Ctx = function() {
-  this.buffer = new Array(Poly1305BlockSize);
+  this.buffer = new Array(Poly1305TagSize);
   this.leftover = 0;
   this.r = new Array(10);
   this.h = new Array(10);
@@ -147,7 +161,7 @@ function poly1305_blocks(ctx, m, mpos, bytes) {
   var hibit = ctx.finished ? 0 : (1 << 11);
   var t = [], d = [], c = 0, i = 0, j = 0;
  
-  while (bytes >= Poly1305BlockSize) {
+  while (bytes >= Poly1305TagSize) {
     for (i = 8; i--;) t[i] = U8TO16(m, i*2+mpos);
  
     ctx.h[0] +=   t[0]                         & 0x1fff;
@@ -181,8 +195,8 @@ function poly1305_blocks(ctx, m, mpos, bytes) {
  
     for (i = 10; i--;) ctx.h[i] = d[i] & 0xffff;
  
-    mpos += Poly1305BlockSize;
-    bytes -= Poly1305BlockSize;
+    mpos += Poly1305TagSize;
+    bytes -= Poly1305TagSize;
   }
 }
  
@@ -190,7 +204,7 @@ function poly1305_update(ctx, m, bytes) {
   var want = 0, i = 0, mpos = 0;
  
   if (ctx.leftover) {
-    want = (Poly1305BlockSize - ctx.leftover);
+    want = (Poly1305TagSize - ctx.leftover);
     if (want > bytes)
       want = bytes;
     for (i = want; i--;) {
@@ -199,14 +213,14 @@ function poly1305_update(ctx, m, bytes) {
     bytes -= want;
     mpos += want;
     ctx.leftover += want;
-    if (ctx.leftover < Poly1305BlockSize)
+    if (ctx.leftover < Poly1305TagSize)
       return;
-    poly1305_blocks(ctx, ctx.buffer, 0, Poly1305BlockSize);
+    poly1305_blocks(ctx, ctx.buffer, 0, Poly1305TagSize);
     ctx.leftover = 0;    
   }
  
-  if (bytes >= Poly1305BlockSize) {
-    want = (bytes & ~(Poly1305BlockSize - 1));
+  if (bytes >= Poly1305TagSize) {
+    want = (bytes & ~(Poly1305TagSize - 1));
     poly1305_blocks(ctx, m, mpos, want);
     mpos += want;
     bytes -= want;
@@ -226,11 +240,11 @@ function poly1305_finish(ctx, mac) {
   if (ctx.leftover) {
     i = ctx.leftover;
     ctx.buffer[i++] = 1;
-    for (; i < Poly1305BlockSize; i++) {
+    for (; i < Poly1305TagSize; i++) {
       ctx.buffer[i] = 0;
     }
     ctx.finished = 1;
-    poly1305_blocks(ctx, ctx.buffer, 0, Poly1305BlockSize);
+    poly1305_blocks(ctx, ctx.buffer, 0, Poly1305TagSize);
   }
  
   c = ctx.h[1] >>> 13;
@@ -321,24 +335,19 @@ function aead_init(c20ctx, key, nonce) {
   chacha20_ivsetup(c20ctx, nonce);
 
   var subkey = [];
-  for (var i = 64; i--;) subkey[i] = 0;
-  chacha20_keystream(c20ctx, subkey, subkey, 64);
+  chacha20_keystream(c20ctx, subkey, 64);
 
   return subkey.slice(0, 32);
 }
 
-var Math_abs = Math.abs,
-    Math_floor = Math.floor,
-    Math_ceil = Math.ceil,
-    Math_min = Math.min;
-
 function store64(dst, pos, num) {
-  var hi = 0, lo = num >>> 0;
-  if ((+(Math_abs(num))) >= 1) {
+  var hi = 0;
+  var lo = num >>> 0; // 2^53 should be huge enough
+  if ((+(Math.abs(num))) >= 1) {
     if (num > 0) {
-      hi = ((Math_min((+(Math_floor(num/4294967296))), 4294967295))|0) >>> 0;
+      hi = ((Math.min((+(Math.floor(num/4294967296))), 4294967295))|0) >>> 0;
     } else {
-      hi = (~~((+(Math_ceil((num - +(((~~(num)))>>>0))/4294967296))))) >>> 0;
+      hi = (~~((+(Math.ceil((num - +(((~~(num)))>>>0))/4294967296))))) >>> 0;
     }
   }
   dst[pos]   = lo & 0xff; lo >>>= 8;
@@ -374,7 +383,7 @@ function aead_encrypt(ctx, nonce, input, ad) {
   var key = aead_init(c, ctx.key, nonce);
 
   var ciphertext = [];
-  chacha20_keystream(c, ciphertext, input, input.length);
+  chacha20_encrypt(c, ciphertext, input, input.length);
 
   var mac = aead_mac(key, ciphertext, ad);
 
@@ -389,9 +398,9 @@ function aead_decrypt(ctx, nonce, ciphertext, ad) {
   var key = aead_init(c, ctx.key, nonce);
 
   var clen = ciphertext.length;
-  var digest = ciphertext.slice(clen - Poly1305BlockSize);
+  var digest = ciphertext.slice(clen - Poly1305TagSize);
 
-  ciphertext = ciphertext.slice(0, clen - Poly1305BlockSize);
+  ciphertext = ciphertext.slice(0, clen - Poly1305TagSize);
 
   var mac = aead_mac(key, ciphertext, ad);
 
@@ -400,7 +409,7 @@ function aead_decrypt(ctx, nonce, ciphertext, ad) {
   }
 
   var out = [];
-  chacha20_keystream(c, out, ciphertext, ciphertext.length);
+  chacha20_decrypt(c, out, ciphertext, ciphertext.length);
 
   return out;
 }
@@ -408,6 +417,7 @@ function aead_decrypt(ctx, nonce, ciphertext, ad) {
 
 //--------------------------- test -----------------------------//
 function fromHex(h) {
+  h.replace(/([^0-9a-f])/g, '');
   var out = [], len = h.length, w = '';
   for (var i = 0; i < len; i += 2) {
     w = h[i];
@@ -431,21 +441,143 @@ function bytesEqual(a, b) {
   return (dif & 1);
 }
 
-// testVectors from http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04#page-11
-var testVectors = {
-  key:   fromHex('4290bcb154173531f314af57f3be3b5006da371ece272afa1b5dbdd1100a1007'),
-  input: fromHex('86d09974840bded2a5ca'),
-  nonce: fromHex('cd7cf67be39c794a'),
-  ad:    fromHex('87e229d4500845a079c0'),
-  output: fromHex('e3e446f7ede9a19b62a4677dabf4e3d24b876bb284753896e1d6'),
-};
+// All testVectors taken from http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04#page-11
 
-var ctx = new AeadCtx(testVectors.key);
+function chacha20_test() {
+  console.log('chacha20 test');
+  var testVectors = [
+    {
+      key:       '0000000000000000000000000000000000000000000000000000000000000000',
+      nonce:     '0000000000000000',
+      keystream: '76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc'+
+                 '8b770dc7da41597c5157488d7724e03fb8d84a376a43b8f41518a11c'+
+                 'c387b669b2ee6586'
+    },
+    {
+      key:       '0000000000000000000000000000000000000000000000000000000000000001',
+      nonce:     '0000000000000000',
+      keystream: '4540f05a9f1fb296d7736e7b208e3c96eb4fe1834688d2604f450952'+
+                 'ed432d41bbe2a0b6ea7566d2a5d1e7e20d42af2c53d792b1c43fea81'+
+                 '7e9ad275ae546963'
+    },
+    {
+      key:       '0000000000000000000000000000000000000000000000000000000000000000',
+      nonce:     '0000000000000001',
+      keystream: 'de9cba7bf3d69ef5e786dc63973f653a0b49e015adbff7134fcb7df1'+
+                 '37821031e85a050278a7084527214f73efc7fa5b5277062eb7a0433e'+
+                 '445f41e3'
+    },
+    {
+      key:       '0000000000000000000000000000000000000000000000000000000000000000',
+      nonce:     '0100000000000000',
+      keystream: 'ef3fdfd6c61578fbf5cf35bd3dd33b8009631634d21e42ac33960bd1'+
+                 '38e50d32111e4caf237ee53ca8ad6426194a88545ddc497a0b466e7d'+
+                 '6bbdb0041b2f586b'
+    },
+    {
+      key:       '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f',
+      nonce:     '0001020304050607',
+      keystream: 'f798a189f195e66982105ffb640bb7757f579da31602fc93ec01ac56'+
+                 'f85ac3c134a4547b733b46413042c9440049176905d3be59ea1c53f1'+
+                 '5916155c2be8241a38008b9a26bc35941e2444177c8ade6689de9526'+
+                 '4986d95889fb60e84629c9bd9a5acb1cc118be563eb9b3a4a472f82e'+
+                 '09a7e778492b562ef7130e88dfe031c79db9d4f7c7a899151b9a4750'+
+                 '32b63fc385245fe054e3dd5a97a5f576fe064025d3ce042c566ab2c5'+
+                 '07b138db853e3d6959660996546cc9c4a6eafdc777c040d70eaf46f7'+
+                 '6dad3979e5c5360c3317166a1c894c94a371876a94df7628fe4eaaf2'+
+                 'ccb27d5aaae0ad7ad0f9d4b6ad3b54098746d4524d38407a6deb3ab7'+
+                 '8fab78c9'
+    },
+  ];
 
-var ciphertext = aead_encrypt(ctx, testVectors.nonce, testVectors.input, testVectors.ad);
+  for (var i = 0; i < testVectors.length; i++) {
+    var key = fromHex(testVectors[i].key);
+    var nonce = fromHex(testVectors[i].nonce);
+    var expected = fromHex(testVectors[i].keystream);
+    var out = [];
 
-console.log(bytesEqual(testVectors.output, ciphertext));
+    var ctx = new Chacha20Ctx();
 
-var plaintext = aead_decrypt(ctx, testVectors.nonce, ciphertext, testVectors.ad);
+    chacha20_keysetup(ctx, key);
+    chacha20_ivsetup(ctx, nonce);
+    chacha20_keystream(ctx, out, expected.length);
 
-console.log(bytesEqual(testVectors.input, plaintext));
+    if (bytesEqual(expected, out) != 1) {
+      console.log('error: ', i);
+      console.log('want:\n', expected.join(' '));
+      console.log('got :\n', out.join(' '), '\n');  
+    } else {
+      console.log(i, 'OK');
+    }
+  }
+}
+
+function poly1305_test() {
+  console.log('poly1305 test');
+  var testVectors = [
+    {
+      input: '0000000000000000000000000000000000000000000000000000000000000000',
+      key:   '746869732069732033322d62797465206b657920666f7220506f6c7931333035',
+      tag:   '49ec78090e481ec6c26b33b91ccc0307'
+    },
+    {
+      input: '48656c6c6f20776f726c6421',
+      key:   '746869732069732033322d62797465206b657920666f7220506f6c7931333035',
+      tag:   'a6f745008f81c916a20dcc74eef2b2f0'
+    }
+  ];
+
+  for (var i = 0; i < testVectors.length; i++) {
+    var input = fromHex(testVectors[i].input);
+    var key = fromHex(testVectors[i].key);
+    var expected = fromHex(testVectors[i].tag);
+
+    var out = [];
+    poly1305_auth(out, input, input.length, key);;
+
+    if (poly1305_verify(expected, out) != 1) {
+      console.log('error: ', i);
+      console.log('want:\n', expected.join(' '));
+      console.log('got :\n', out.join(' '), '\n');  
+    } else {
+      console.log(i, 'OK');
+    }
+  }
+}
+
+function aead_test() {
+  console.log('aead test');
+  var testVectors = {
+    key:   fromHex('4290bcb154173531f314af57f3be3b5006da371ece272afa1b5dbdd1100a1007'),
+    input: fromHex('86d09974840bded2a5ca'),
+    nonce: fromHex('cd7cf67be39c794a'),
+    ad:    fromHex('87e229d4500845a079c0'),
+    output: fromHex('e3e446f7ede9a19b62a4677dabf4e3d24b876bb284753896e1d6'),
+  };
+
+  var ctx = new AeadCtx(testVectors.key);
+
+  var ciphertext = aead_encrypt(ctx, testVectors.nonce, testVectors.input, testVectors.ad);
+
+  if (bytesEqual(testVectors.output, ciphertext) !== 1) {
+    console.log('encryption error: ');
+    console.log('want:\n', testVectors.output.join(' '));
+    console.log('got :\n', ciphertext.join(' '), '\n');
+  } else {
+    console.log('encryption OK');
+  }
+
+  var plaintext = aead_decrypt(ctx, testVectors.nonce, ciphertext, testVectors.ad);
+
+  if (bytesEqual(testVectors.input, plaintext) !== 1) {
+    console.log('dencryption error: ');
+    console.log('want:\n', testVectors.input.join(' '));
+    console.log('got :\n', plaintext.join(' '), '\n');
+  } else {
+    console.log('decryption OK');
+  }
+}
+
+chacha20_test();
+poly1305_test();
+aead_test();
