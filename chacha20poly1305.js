@@ -326,6 +326,13 @@ function poly1305_verify(mac1, mac2) {
 
 // Written in 2014 by Devi Mandiri. Public domain.
 
+// Caveat:
+// http://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04#page-9
+// specified P_MAX and A_MAX are 2^64 and C_MAX is 2^64+16.
+// While according to http://www.ecma-international.org/ecma-262/5.1/#sec-15.4
+// I think max input length = 2^32-1 = 4294967295 = ~3.9Gb due to the ToUint32 abstract operation.
+// Whatever ;)
+
 var AeadCtx = function(key) {
   this.key = key;
 };
@@ -341,8 +348,7 @@ function aead_init(c20ctx, key, nonce) {
 }
 
 function store64(dst, pos, num) {
-  var hi = 0;
-  var lo = num >>> 0; // 2^53 should be huge enough
+  var hi = 0, lo = num >>> 0;
   if ((+(Math.abs(num))) >= 1) {
     if (num > 0) {
       hi = ((Math.min((+(Math.floor(num/4294967296))), 4294967295))|0) >>> 0;
