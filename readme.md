@@ -28,7 +28,7 @@ decipher.setAAD(nonencrypteddata);// must be called before data
 decipher.setAuthTag(tag);// must be called before data
 ```
 
-decipher with throw if you don't set a tag or the tag doesn't match. See the [node docs](https://github.com/joyent/node/blob/cfcb1de130867197cbc9c6012b7e84e08e53d032/doc/api/crypto.markdown#cryptocreatecipherivalgorithm-key-iv) for more info (the iv length for gcm is also 96 bytes fyi).
+decipher with throw if you don't set a tag or the tag doesn't match. See the [node docs](https://github.com/joyent/node/blob/cfcb1de130867197cbc9c6012b7e84e08e53d032/doc/api/crypto.markdown#cryptocreatecipherivalgorithm-key-iv) for more info (the iv length for gcm is also 96 bit fyi).
 
 # ChaCha20
 
