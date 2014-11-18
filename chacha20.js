@@ -22,6 +22,10 @@ function Chacha20(key, nonce) {
   this.input[13] = nonce.readUInt32LE(0);
   this.input[14] = nonce.readUInt32LE(4);
   this.input[15] = nonce.readUInt32LE(8);
+  this.cache = new Buffer(64);
+  this.cacheLen = 0;
+  this.cacheStart = 0;
+  this.cacheEnd = 0;
 }
 
 Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
@@ -32,10 +36,25 @@ Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
 };
 
 Chacha20.prototype.getBytes = function(len) {
+  var dpos = 0;
+  var dst = new Buffer(len);
+  dst.fill(0);
+  if (this.cacheLen) {
+    if (this.cacheLen >= len) {
+      this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
+      this.cacheLen -= len;
+      this.cacheStart += len;
+      return dst;
+    } else {
+      this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
+      len -= this.cacheLen;
+      dpos += this.cacheLen;
+      this.cacheLen = this.cacheStart = this.cacheEnd = 0;
+    }
+  }
   var x = new Uint32Array(16);
   var output = new Buffer(64);
-  var i, dpos = 0, spos = 0;
-  var dst = new Buffer(len);
+  var i, spos = 0;
 
   while (len > 0 ) {
     for (i = 16; i--;) x[i] = this.input[i];
@@ -58,14 +77,14 @@ Chacha20.prototype.getBytes = function(len) {
       throw new Error('counter is exausted');
     }
     if (len <= 64) {
-      for (i = len; i--;) {
-        dst[i+dpos] = output[i];
-      }
+      output.copy(dst, dpos, 0, len);
+      if (len < 64) {
+        output.copy(this.cache, 0, len);
+        this.cacheLen = this.cacheEnd = 64 - len;
+      }      
       return dst;
     }
-    for (i = 64; i--;) {
-      dst[i+dpos] = output[i];
-    }
+    output.copy(dst, dpos);
     len -= 64;
     dpos += 64;
   }
@@ -75,6 +94,7 @@ Chacha20.prototype.getBytes = function(len) {
 Chacha20.prototype.keystream = function(dst, len) {
   var pad = this.getBytes(len);
   var i = -1;
+  pad.copy(dst, 0, len);
   while (++i < len) {
     dst[i] = pad[i];
   }

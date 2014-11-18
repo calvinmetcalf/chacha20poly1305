@@ -78,6 +78,29 @@ test('stream ' + i, function (t) {
     t.equals(calctag.toString('hex'), tag.toString('hex'));
     t.equals(Buffer.concat(data).toString('hex'), ciphertext.toString('hex'));
 });
+test('multi part stream ' + i, function (t) {
+    t.plan(2);
+
+    var key = fromHex(testVector.key),
+        nonce = fromHex(testVector.nonce),
+        plaintext = fromHex(testVector.plaintext, i),
+        aad = fromHex(testVector.aad),
+        ciphertext = fromHex(testVector.ciphertext),
+        tag = fromHex(testVector.tag),
+        mid = ~~(plaintext.length/2);
+    var cipher = ciphers.createCipher(key, nonce);
+    var data = [];
+    cipher.on('data', function (d) {
+      data.push(d);
+    });
+    cipher.setAAD(aad);
+    cipher.write(plaintext.slice(0, mid));
+    cipher.write(plaintext.slice(mid));
+    cipher.end();
+    var calctag = cipher.getAuthTag();
+    t.equals(calctag.toString('hex'), tag.toString('hex'));
+    t.equals(Buffer.concat(data).toString('hex'), ciphertext.toString('hex'));
+});
 test('decipher stream ' + i, function (t) {
     t.plan(1);
     var key = fromHex(testVector.key),
@@ -118,9 +141,11 @@ test('chacha stream', function (t) {
     var key = fromHex(testVector.key),
         nonce = fromHex(testVector.nonce),
         plaintext = fromHex(testVector.plaintext),
-        ciphertext = fromHex(testVector.expected);
+        ciphertext = fromHex(testVector.expected),
+        mid = ~~(plaintext.length/2);
     var cipher = ciphers.chacha20(key, nonce);
-    var output = cipher.update(plaintext);
+    var output = cipher.update(plaintext.slice(0, mid));
+    output = Buffer.concat([output, cipher.update(plaintext.slice(mid))]);
     t.notOk(cipher.final().length);
     t.equals(output.toString('hex'), ciphertext.toString('hex'));
 });
