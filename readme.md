@@ -2,7 +2,7 @@ ChaCha
 ====
 
 
-ChaCha20 Poly1305 implementation based on this [repo](https://github.com/devi/chacha20poly1305), test vectors are from this (ietf draft)[https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01].  Note there are 2 versions of ChaCha20, the origional by D. Bernstein (with vectors in [this ietf draft](http://tools.ietf.org/html/draft-strombergson-chacha-test-vectors-01)) and a modified version with a longer nonce and shorter counter.  This is the latter version, which is the one the ietf seam to have standardized (if I implemented the wrong version, open an issue, it's an easy fix).
+ChaCha20 Poly1305 implementation based on this [repo](https://github.com/devi/chacha20poly1305), test vectors are from this [ietf draft](https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01).  Note there are 2 versions of ChaCha20, the origional by D. Bernstein (with vectors in [this ietf draft](http://tools.ietf.org/html/draft-strombergson-chacha-test-vectors-01)) and a modified version with a longer nonce and shorter counter.  This is the latter version, which is the one the ietf seam to have standardized (if I implemented the wrong version, open an issue, it's an easy fix).
 
 API
 ===
