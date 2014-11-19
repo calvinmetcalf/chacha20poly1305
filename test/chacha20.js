@@ -173,7 +173,7 @@ function chacha20_encryption_test() {
         plaintext = fromHex(testVectors[i].plaintext),
         expected = fromHex(testVectors[i].expected),
         len = plaintext.length,
-        buf = new Uint8Array(len),
+        buf = new Buffer(len),
         output = new Buffer(len);
 
     var ctx = new Chacha20(key, nonce);
