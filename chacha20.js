@@ -76,16 +76,11 @@ Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
   x[d] = out[3].x;
 };
 Chacha20.prototype.round = function (x, output) {
-  var input = this.input;
-  var a = input.a;
-  var b = input.b;
-  var c = input.c;
-  var d = input.d;
   var out = {
-    a:a,
-    b:b,
-    c:c,
-    d:d
+    a:this.input.a,
+    b:this.input.b,
+    c:this.input.c,
+    d:this.input.d
   };
   for (var i = 20; i > 0; i -= 2) {
     out = this._quarterRound(out.a, out.b, out.c, out.d);
@@ -97,14 +92,14 @@ Chacha20.prototype.round = function (x, output) {
     out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
     out.b = SIMD.int32x4.swizzle(out.b, 3, 0, 1, 2);
   }
-  a = SIMD.int32x4.add(out.a, input.a);
-  b = SIMD.int32x4.add(out.b, input.b);
-  c = SIMD.int32x4.add(out.c, input.c);
-  d = SIMD.int32x4.add(out.d, input.d);
-  SIMD.int32x4.store(x, 0, a);
-  SIMD.int32x4.store(x, 4, b);
-  SIMD.int32x4.store(x, 8, c);
-  SIMD.int32x4.store(x, 12, d);
+  out.a = SIMD.int32x4.add(out.a, this.input.a);
+  out.b = SIMD.int32x4.add(out.b, this.input.b);
+  out.c = SIMD.int32x4.add(out.c, this.input.c);
+  out.d = SIMD.int32x4.add(out.d, this.input.d);
+  SIMD.int32x4.store(x, 0, out.a);
+  SIMD.int32x4.store(x, 4, out.b);
+  SIMD.int32x4.store(x, 8, out.c);
+  SIMD.int32x4.store(x, 12, out.d);
   i = -1;
   while (++i < 16) {
     output.writeUInt32LE(x[i], i << 2);
