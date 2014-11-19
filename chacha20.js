@@ -39,17 +39,17 @@ Chacha20.prototype.getBytes = function(len) {
   var dpos = 0;
   var dst = new Buffer(len);
   dst.fill(0);
-  if (this.cacheLen) {
-    if (this.cacheLen >= len) {
+  var cacheLen = this.cacheEnd - this.cacheStart;
+  if (cacheLen) {
+    if (cacheLen >= len) {
       this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
-      this.cacheLen -= len;
       this.cacheStart += len;
       return dst;
     } else {
-      this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
-      len -= this.cacheLen;
-      dpos += this.cacheLen;
-      this.cacheLen = this.cacheStart = this.cacheEnd = 0;
+      this.cache.copy(dst, 0, this.cacheStart, this.cacheStart + cacheLen);
+      len -= cacheLen;
+      dpos += cacheLen;
+      this.cacheStart = this.cacheEnd = 0;
     }
   }
   var x = new Uint32Array(16);
@@ -80,7 +80,8 @@ Chacha20.prototype.getBytes = function(len) {
       output.copy(dst, dpos, 0, len);
       if (len < 64) {
         output.copy(this.cache, 0, len);
-        this.cacheLen = this.cacheEnd = 64 - len;
+        this.cacheEnd = 64 - len;
+        this.cacheStart = 0;
       }      
       return dst;
     }
