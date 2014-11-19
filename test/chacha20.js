@@ -1,5 +1,6 @@
 var Chacha20 = require('../chacha20');
 var test = require('tape');
+var base = require('../');
 function fromHex(h) {
   h = h.replace(/([^0-9a-f])/g, '');
   return new Buffer(h, 'hex');
@@ -192,3 +193,21 @@ function chacha20_encryption_test() {
   t.end();
   });
 }
+test('strings', function (t) {
+    var key = new Buffer(256/8);
+    var iv = new Buffer(96/8);
+    key.fill(0);
+    iv.fill(0);
+    var cha1 = base.chacha20(key, iv);
+    //var cha2 = chacha2.chacha20(key, iv);
+    var inputs = ['asdfasd', 'asdfasfda', 'asdfkaslda'];
+    var out = new Array(3);
+
+  
+
+out[0] = cha1.update(inputs[0]);
+out[1] = cha1.update(inputs[1]);
+out[2] = cha1.update(inputs[2]);
+t.equals(out.length, 3);
+t.end();
+});
