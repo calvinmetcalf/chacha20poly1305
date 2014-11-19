@@ -22,6 +22,12 @@ function Chacha20(key, nonce) {
   this.input = new Uint32Array(16);
 
   // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
+  // this.input = {
+  //   a:SIMD.int32x4(1634760805, 857760878, 2036477234, 1797285236),
+  //   b:SIMD.int32x4(key.readUInt32LE(0), key.readUInt32LE(4), key.readUInt32LE(8), key.readUInt32LE(12)),
+  //   c:SIMD.int32x4( key.readUInt32LE(16), key.readUInt32LE(20), key.readUInt32LE(24), key.readUInt32LE(28)),
+  //   d:SIMD.int32x4(0, nonce.readUInt32LE(0), nonce.readUInt32LE(4), nonce.readUInt32LE(8))
+  // };
   this.input[0] = 1634760805;
   this.input[1] =  857760878;
   this.input[2] = 2036477234;
@@ -70,10 +76,11 @@ Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
   x[d] = out[3].x;
 };
 Chacha20.prototype.round = function (x) {
-  var a = SIMD.int32x4(x[0], x[1], x[2], x[3]);
-  var b = SIMD.int32x4(x[4], x[5], x[6], x[7]);
-  var c = SIMD.int32x4(x[8], x[9], x[10], x[11]);
-  var d = SIMD.int32x4(x[12], x[13], x[14], x[15]);
+  var input = this.input;
+  var a = SIMD.int32x4(input[0], input[1], input[2], input[3]);
+  var b = SIMD.int32x4(input[4], input[5], input[6], input[7]);
+  var c = SIMD.int32x4(input[8], input[9], input[10], input[11]);
+  var d = SIMD.int32x4(input[12], input[13], input[14], input[15]);
   var out = {
     a:a,
     b:b,
@@ -82,8 +89,6 @@ Chacha20.prototype.round = function (x) {
   };
   for (var i = 20; i > 0; i -= 2) {
     out = this._quarterRound(out.a, out.b, out.c, out.d);
-
-
     out.b = SIMD.int32x4.swizzle(out.b, 1, 2, 3, 0);
     out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
     out.d = SIMD.int32x4.swizzle(out.d, 3, 0, 1, 2);
@@ -96,25 +101,25 @@ Chacha20.prototype.round = function (x) {
   b = out.b;
   c = out.c;
   d = out.d;
-  x[0] = a.x;
-  x[1] = a.y;
-  x[2] = a.z;
-  x[3] = a.w;
+  x[0] = a.x + input[0];
+  x[1] = a.y + input[1];
+  x[2] = a.z + input[2];
+  x[3] = a.w + input[3];
 
-  x[4] = b.x;
-  x[5] = b.y;
-  x[6] = b.z;
-  x[7] = b.w;
+  x[4] = b.x + input[4];
+  x[5] = b.y + input[5];
+  x[6] = b.z + input[6];
+  x[7] = b.w + input[7];
 
-  x[8] = c.x;
-  x[9] = c.y;
-  x[10] = c.z;
-  x[11] = c.w;
+  x[8] = c.x + input[8];
+  x[9] = c.y + input[9];
+  x[10] = c.z + input[10];
+  x[11] = c.w + input[11];
 
-  x[12] = d.x;
-  x[13] = d.y;
-  x[14] = d.z;
-  x[15] = d.w;
+  x[12] = d.x + input[12];
+  x[13] = d.y + input[13];
+  x[14] = d.z + input[14];
+  x[15] = d.w + input[15];
 
   // this.quarterRound(x, 0, 4, 8,12);
   // this.quarterRound(x, 1, 5, 9,13);
@@ -146,11 +151,8 @@ Chacha20.prototype.getBytes = function(len) {
   var x = new Uint32Array(16);
   var output = new Buffer(64);
   var i, spos = 0;
-
   while (len > 0 ) {
-    for (i = 16; i--;) x[i] = this.input[i];
     this.round(x);
-    for (i = 16; i--;) x[i] += this.input[i];
     for (i = 16; i--;) output.writeUInt32LE(x[i], 4*i);
 
     this.input[12] += 1;
