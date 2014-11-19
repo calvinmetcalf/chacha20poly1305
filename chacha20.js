@@ -1,8 +1,17 @@
+var maxInt = Math.pow(2, 32);
+function fixInt(int) {
+  if (int >= maxInt) {
+    return int - maxInt;
+  }
+  return int;
+}
 function ROTATE(v, c) {
   return (v << c) | (v >>> (32 - c));
 }
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
+  key = new Buffer(key);
+  nonce = new Buffer(nonce);
   this.input = new Uint32Array(16);
 
   // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
@@ -69,8 +78,10 @@ Chacha20.prototype.getBytes = function(len) {
       this.quarterRound(x, 2, 7, 8,13);
       this.quarterRound(x, 3, 4, 9,14);
     }
-    for (i = 16; i--;) x[i] += this.input[i];
-    for (i = 16; i--;) output.writeUInt32LE(x[i], 4*i);
+    var _i;
+    for (i = 16; i--;) {
+      output.writeUInt32LE(fixInt(x[i] + this.input[i]), 4*i);
+    }
 
     this.input[12] += 1;
     if (!this.input[12]) {
