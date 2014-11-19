@@ -23,7 +23,7 @@ function Chacha20(key, nonce) {
   this.input = {
     a:SIMD.int32x4(1634760805, 857760878, 2036477234, 1797285236),
     b:SIMD.int32x4(key.readUInt32LE(0), key.readUInt32LE(4), key.readUInt32LE(8), key.readUInt32LE(12)),
-    c:SIMD.int32x4( key.readUInt32LE(16), key.readUInt32LE(20), key.readUInt32LE(24), key.readUInt32LE(28)),
+    c:SIMD.int32x4(key.readUInt32LE(16), key.readUInt32LE(20), key.readUInt32LE(24), key.readUInt32LE(28)),
     d:SIMD.int32x4(0, nonce.readUInt32LE(0), nonce.readUInt32LE(4), nonce.readUInt32LE(8))
   };
   this.output = new Buffer(64);
