@@ -1,4 +1,5 @@
 var Chacha20 = require('../chacha20');
+var SIMD = global.SIMD || require('../simd');
 var test = require('tape');
 function fromHex(h) {
   h = h.replace(/([^0-9a-f])/g, '');
@@ -93,7 +94,7 @@ function chacha20_block_test() {
 
     var ctx = new Chacha20(key, nonce);
     if (counter) {
-      ctx.input[12] = counter;
+      ctx.input.d =  SIMD.int32x4.withX(ctx.input.d, counter);
     }
 
     ctx.keystream(output, len);
@@ -178,7 +179,7 @@ function chacha20_encryption_test() {
 
     var ctx = new Chacha20(key, nonce);
     if (counter) {
-      ctx.input[12] = counter;
+      ctx.input.d =  SIMD.int32x4.withX(ctx.input.d, counter);
     }
     ctx.keystream(buf, len);
 

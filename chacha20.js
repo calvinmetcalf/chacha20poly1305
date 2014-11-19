@@ -1,4 +1,4 @@
-var SIMD = require('./simd');
+
 function ROTATE(v, c) {
   return SIMD.int32x4.or(shiftLeft(v, c), shiftRightLogical(v, SIMD.int32x4.sub(s32, c)));
 }
@@ -16,34 +16,34 @@ function shiftLeft(a, b) {
   var w = a.w << b.w;
   return SIMD.int32x4(x, y, z, w);
 }
-//var SIMD = require('./simd');
+var SIMD = global.SIMD || require('./simd');
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
-  this.input = new Uint32Array(16);
+  //this.input = new Uint32Array(16);
 
-  // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
-  // this.input = {
-  //   a:SIMD.int32x4(1634760805, 857760878, 2036477234, 1797285236),
-  //   b:SIMD.int32x4(key.readUInt32LE(0), key.readUInt32LE(4), key.readUInt32LE(8), key.readUInt32LE(12)),
-  //   c:SIMD.int32x4( key.readUInt32LE(16), key.readUInt32LE(20), key.readUInt32LE(24), key.readUInt32LE(28)),
-  //   d:SIMD.int32x4(0, nonce.readUInt32LE(0), nonce.readUInt32LE(4), nonce.readUInt32LE(8))
-  // };
-  this.input[0] = 1634760805;
-  this.input[1] =  857760878;
-  this.input[2] = 2036477234;
-  this.input[3] = 1797285236;
-  this.input[4] = key.readUInt32LE(0);
-  this.input[5] = key.readUInt32LE(4);
-  this.input[6] = key.readUInt32LE(8);
-  this.input[7] = key.readUInt32LE(12);
-  this.input[8] = key.readUInt32LE(16);
-  this.input[9] = key.readUInt32LE(20);
-  this.input[10] = key.readUInt32LE(24);
-  this.input[11] = key.readUInt32LE(28);
-  this.input[12] = 0;
-  this.input[13] = nonce.readUInt32LE(0);
-  this.input[14] = nonce.readUInt32LE(4);
-  this.input[15] = nonce.readUInt32LE(8);
+  //https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
+  this.input = {
+    a:SIMD.int32x4(1634760805, 857760878, 2036477234, 1797285236),
+    b:SIMD.int32x4(key.readUInt32LE(0), key.readUInt32LE(4), key.readUInt32LE(8), key.readUInt32LE(12)),
+    c:SIMD.int32x4( key.readUInt32LE(16), key.readUInt32LE(20), key.readUInt32LE(24), key.readUInt32LE(28)),
+    d:SIMD.int32x4(0, nonce.readUInt32LE(0), nonce.readUInt32LE(4), nonce.readUInt32LE(8))
+  };
+  // this.input[0] = 1634760805;
+  // this.input[1] =  857760878;
+  // this.input[2] = 2036477234;
+  // this.input[3] = 1797285236;
+  // this.input[4] = key.readUInt32LE(0);
+  // this.input[5] = key.readUInt32LE(4);
+  // this.input[6] = key.readUInt32LE(8);
+  // this.input[7] = key.readUInt32LE(12);
+  // this.input[8] = key.readUInt32LE(16);
+  // this.input[9] = key.readUInt32LE(20);
+  // this.input[10] = key.readUInt32LE(24);
+  // this.input[11] = key.readUInt32LE(28);
+  // this.input[12] = 0;
+  // this.input[13] = nonce.readUInt32LE(0);
+  // this.input[14] = nonce.readUInt32LE(4);
+  // this.input[15] = nonce.readUInt32LE(8);
   this.cache = new Buffer(64);
   this.cacheLen = 0;
   this.cacheStart = 0;
@@ -75,12 +75,12 @@ Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
   x[c] = out[2].x;
   x[d] = out[3].x;
 };
-Chacha20.prototype.round = function (x) {
+Chacha20.prototype.round = function (x, output) {
   var input = this.input;
-  var a = SIMD.int32x4(input[0], input[1], input[2], input[3]);
-  var b = SIMD.int32x4(input[4], input[5], input[6], input[7]);
-  var c = SIMD.int32x4(input[8], input[9], input[10], input[11]);
-  var d = SIMD.int32x4(input[12], input[13], input[14], input[15]);
+  var a = input.a;
+  var b = input.b;
+  var c = input.c;
+  var d = input.d;
   var out = {
     a:a,
     b:b,
@@ -97,29 +97,37 @@ Chacha20.prototype.round = function (x) {
     out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
     out.b = SIMD.int32x4.swizzle(out.b, 3, 0, 1, 2);
   }
-  a = out.a;
-  b = out.b;
-  c = out.c;
-  d = out.d;
-  x[0] = a.x + input[0];
-  x[1] = a.y + input[1];
-  x[2] = a.z + input[2];
-  x[3] = a.w + input[3];
+  a = SIMD.int32x4.add(out.a, input.a);
+  b = SIMD.int32x4.add(out.b, input.b);
+  c = SIMD.int32x4.add(out.c, input.c);
+  d = SIMD.int32x4.add(out.d, input.d);
+  SIMD.int32x4.store(x, 0, a);
+  SIMD.int32x4.store(x, 4, b);
+  SIMD.int32x4.store(x, 8, c);
+  SIMD.int32x4.store(x, 12, d);
+  i = -1;
+  while (++i < 16) {
+    output.writeUInt32LE(x[i], i << 2);
+  }
+  // x[0] = a.x + input[0];
+  // x[1] = a.y + input[1];
+  // x[2] = a.z + input[2];
+  // x[3] = a.w + input[3];
 
-  x[4] = b.x + input[4];
-  x[5] = b.y + input[5];
-  x[6] = b.z + input[6];
-  x[7] = b.w + input[7];
+  // x[4] = b.x + input[4];
+  // x[5] = b.y + input[5];
+  // x[6] = b.z + input[6];
+  // x[7] = b.w + input[7];
 
-  x[8] = c.x + input[8];
-  x[9] = c.y + input[9];
-  x[10] = c.z + input[10];
-  x[11] = c.w + input[11];
+  // x[8] = c.x + input[8];
+  // x[9] = c.y + input[9];
+  // x[10] = c.z + input[10];
+  // x[11] = c.w + input[11];
 
-  x[12] = d.x + input[12];
-  x[13] = d.y + input[13];
-  x[14] = d.z + input[14];
-  x[15] = d.w + input[15];
+  // x[12] = d.x + input[12];
+  // x[13] = d.y + input[13];
+  // x[14] = d.z + input[14];
+  // x[15] = d.w + input[15];
 
   // this.quarterRound(x, 0, 4, 8,12);
   // this.quarterRound(x, 1, 5, 9,13);
@@ -152,11 +160,11 @@ Chacha20.prototype.getBytes = function(len) {
   var output = new Buffer(64);
   var i, spos = 0;
   while (len > 0 ) {
-    this.round(x);
-    for (i = 16; i--;) output.writeUInt32LE(x[i], 4*i);
+    this.round(x, output);
+    
 
-    this.input[12] += 1;
-    if (!this.input[12]) {
+    this.input.d =  SIMD.int32x4.withX(this.input.d, this.input.d.x + 1);
+    if (!this.input.d.x) {
       throw new Error('counter is exausted');
     }
     if (len <= 64) {
