@@ -16,7 +16,7 @@ function shiftLeft(a, b) {
   var w = a.w << b.w;
   return SIMD.int32x4(x, y, z, w);
 }
-var SIMD = global.SIMD;
+var SIMD = global.SIMD || require('./simd');
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
   //https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
