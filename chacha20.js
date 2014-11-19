@@ -1,6 +1,22 @@
+var SIMD = require('./simd');
 function ROTATE(v, c) {
-  return (v << c) | (v >>> (32 - c));
+  return SIMD.int32x4.or(shiftLeft(v, c), shiftRightLogical(v, SIMD.int32x4.sub(s32, c)));
 }
+function shiftRightLogical(a, b) {
+  var x = a.x >>> b.x;
+  var y = a.y >>> b.y;
+  var z = a.z >>> b.z;
+  var w = a.w >>> b.w;
+  return SIMD.int32x4(x, y, z, w);
+}
+function shiftLeft(a, b) {
+  var x = a.x << b.x;
+  var y = a.y << b.y;
+  var z = a.z << b.z;
+  var w = a.w << b.w;
+  return SIMD.int32x4(x, y, z, w);
+}
+//var SIMD = require('./simd');
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
   this.input = new Uint32Array(16);
@@ -27,29 +43,104 @@ function Chacha20(key, nonce) {
   this.cacheStart = 0;
   this.cacheEnd = 0;
 }
-
-Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
-  x[a] += x[b]; x[d] = ROTATE(x[d] ^ x[a], 16);
-  x[c] += x[d]; x[b] = ROTATE(x[b] ^ x[c], 12);
-  x[a] += x[b]; x[d] = ROTATE(x[d] ^ x[a],  8);
-  x[c] += x[d]; x[b] = ROTATE(x[b] ^ x[c],  7);
+var s16 = SIMD.int32x4(16, 16, 16, 16);
+var s12 = SIMD.int32x4(12, 12, 12, 12);
+var s8 = SIMD.int32x4(8, 8, 8, 8);
+var s7 = SIMD.int32x4(7, 7, 7, 7);
+var s32 = SIMD.int32x4(32, 32, 32, 32);
+Chacha20.prototype._quarterRound = function(a, b, c, d) {
+  a = SIMD.int32x4.add(a, b); 
+  d = ROTATE(SIMD.int32x4.xor(d, a), s16);
+  c = SIMD.int32x4.add(c, d); 
+  b = ROTATE(SIMD.int32x4.xor(b, c), s12);
+  a = SIMD.int32x4.add(a, b);
+  d = ROTATE(SIMD.int32x4.xor(d, a),  s8);
+  c = SIMD.int32x4.add(c, d); 
+  b = ROTATE(SIMD.int32x4.xor(b, c),  s7);
+  return {a:a, b:b, c:c, d:d};
 };
+function makeSimd(a) {
+  return SIMD.int32x4(a, 0, 0, 0);
+}
+Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
+  var out = this._quarterRound(makeSimd(x[a]), makeSimd(x[b]), makeSimd(x[c]), makeSimd(x[d]));
+  x[a] = out[0].x;
+  x[b] = out[1].x;
+  x[c] = out[2].x;
+  x[d] = out[3].x;
+};
+Chacha20.prototype.round = function (x) {
+  var a = SIMD.int32x4(x[0], x[1], x[2], x[3]);
+  var b = SIMD.int32x4(x[4], x[5], x[6], x[7]);
+  var c = SIMD.int32x4(x[8], x[9], x[10], x[11]);
+  var d = SIMD.int32x4(x[12], x[13], x[14], x[15]);
+  var out = {
+    a:a,
+    b:b,
+    c:c,
+    d:d
+  };
+  for (var i = 20; i > 0; i -= 2) {
+    out = this._quarterRound(out.a, out.b, out.c, out.d);
 
+
+    out.b = SIMD.int32x4.swizzle(out.b, 1, 2, 3, 0);
+    out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
+    out.d = SIMD.int32x4.swizzle(out.d, 3, 0, 1, 2);
+    out = this._quarterRound(out.a, out.b, out.c, out.d);
+    out.d = SIMD.int32x4.swizzle(out.d, 1, 2, 3, 0);
+    out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
+    out.b = SIMD.int32x4.swizzle(out.b, 3, 0, 1, 2);
+  }
+  a = out.a;
+  b = out.b;
+  c = out.c;
+  d = out.d;
+  x[0] = a.x;
+  x[1] = a.y;
+  x[2] = a.z;
+  x[3] = a.w;
+
+  x[4] = b.x;
+  x[5] = b.y;
+  x[6] = b.z;
+  x[7] = b.w;
+
+  x[8] = c.x;
+  x[9] = c.y;
+  x[10] = c.z;
+  x[11] = c.w;
+
+  x[12] = d.x;
+  x[13] = d.y;
+  x[14] = d.z;
+  x[15] = d.w;
+
+  // this.quarterRound(x, 0, 4, 8,12);
+  // this.quarterRound(x, 1, 5, 9,13);
+  // this.quarterRound(x, 2, 6,10,14);
+  // this.quarterRound(x, 3, 7,11,15);
+
+  // this.quarterRound(x, 0, 5,10,15);
+  // this.quarterRound(x, 1, 6,11,12);
+  // this.quarterRound(x, 2, 7, 8,13);
+  // this.quarterRound(x, 3, 4, 9,14);
+};
 Chacha20.prototype.getBytes = function(len) {
   var dpos = 0;
   var dst = new Buffer(len);
   dst.fill(0);
-  if (this.cacheLen) {
-    if (this.cacheLen >= len) {
+  var cacheLen = this.cacheEnd - this.cacheStart;
+  if (cacheLen) {
+    if (cacheLen >= len) {
       this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
-      this.cacheLen -= len;
       this.cacheStart += len;
       return dst;
     } else {
-      this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
-      len -= this.cacheLen;
-      dpos += this.cacheLen;
-      this.cacheLen = this.cacheStart = this.cacheEnd = 0;
+      this.cache.copy(dst, 0, this.cacheStart, this.cacheStart + cacheLen);
+      len -= cacheLen;
+      dpos += cacheLen;
+      this.cacheStart = this.cacheEnd = 0;
     }
   }
   var x = new Uint32Array(16);
@@ -58,17 +149,7 @@ Chacha20.prototype.getBytes = function(len) {
 
   while (len > 0 ) {
     for (i = 16; i--;) x[i] = this.input[i];
-    for (i = 20; i > 0; i -= 2) {
-      this.quarterRound(x, 0, 4, 8,12);
-      this.quarterRound(x, 1, 5, 9,13);
-      this.quarterRound(x, 2, 6,10,14);
-      this.quarterRound(x, 3, 7,11,15);
-
-      this.quarterRound(x, 0, 5,10,15);
-      this.quarterRound(x, 1, 6,11,12);
-      this.quarterRound(x, 2, 7, 8,13);
-      this.quarterRound(x, 3, 4, 9,14);
-    }
+    this.round(x);
     for (i = 16; i--;) x[i] += this.input[i];
     for (i = 16; i--;) output.writeUInt32LE(x[i], 4*i);
 
@@ -80,7 +161,8 @@ Chacha20.prototype.getBytes = function(len) {
       output.copy(dst, dpos, 0, len);
       if (len < 64) {
         output.copy(this.cache, 0, len);
-        this.cacheLen = this.cacheEnd = 64 - len;
+        this.cacheEnd = 64 - len;
+        this.cacheStart = 0;
       }      
       return dst;
     }
