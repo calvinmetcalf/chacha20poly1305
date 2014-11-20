@@ -1,24 +1,14 @@
-
+var i32x4 = new Int32Array(4);
 function ROTATE(v, c) {
-  return SIMD.int32x4.or(shiftLeft(v, c), shiftRightLogical(v, SIMD.int32x4.sub(s32, c)));
+  var right = s32.clone(i32x4).sub(c).shiftRightLogicalBy(v);
+  v.shiftLeft(c).xor(right);
 }
-function shiftRightLogical(a, b) {
-  var x = a.x >>> b.x;
-  var y = a.y >>> b.y;
-  var z = a.z >>> b.z;
-  var w = a.w >>> b.w;
-  return SIMD.int32x4(x, y, z, w);
-}
-function shiftLeft(a, b) {
-  var x = a.x << b.x;
-  var y = a.y << b.y;
-  var z = a.z << b.z;
-  var w = a.w << b.w;
-  return SIMD.int32x4(x, y, z, w);
-}
-var SIMD = global.SIMD || require('./simd');
+
+var SIMD = require('./simd');
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
+  key = new Buffer(key);
+  nonce = new Buffer(nonce);
   //https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
   this.input = {
     a:SIMD.int32x4(1634760805, 857760878, 2036477234, 1797285236),
@@ -28,6 +18,7 @@ function Chacha20(key, nonce) {
   };
   this.output = new Buffer(64);
   this.cachePos = 64;
+  this.working = new ArrayBuffer(64);
 }
 var s16 = SIMD.int32x4(16, 16, 16, 16);
 var s12 = SIMD.int32x4(12, 12, 12, 12);
@@ -36,15 +27,14 @@ var s7 = SIMD.int32x4(7, 7, 7, 7);
 var s32 = SIMD.int32x4(32, 32, 32, 32);
 Chacha20.prototype.quarterRound = function(a, b, c, d) {
   // well 4 quarter rounds at once
-  a = SIMD.int32x4.add(a, b); 
-  d = ROTATE(SIMD.int32x4.xor(d, a), s16);
-  c = SIMD.int32x4.add(c, d); 
-  b = ROTATE(SIMD.int32x4.xor(b, c), s12);
-  a = SIMD.int32x4.add(a, b);
-  d = ROTATE(SIMD.int32x4.xor(d, a),  s8);
-  c = SIMD.int32x4.add(c, d); 
-  b = ROTATE(SIMD.int32x4.xor(b, c),  s7);
-  return {a:a, b:b, c:c, d:d};
+  a.add(b); 
+  ROTATE(d.xor(a), s16);
+  c.add(d); 
+  ROTATE(b.xor(c), s12);
+  a.add(b);
+  ROTATE(d.xor(a),  s8);
+  c.add(d); 
+  ROTATE(b.xor(c),  s7);
 };
 
 
@@ -56,29 +46,29 @@ function toNodeBuffer(output, pos, int4){
 }
 Chacha20.prototype.rounds = function () {
   var out = {
-    a:this.input.a,
-    b:this.input.b,
-    c:this.input.c,
-    d:this.input.d
+    a:this.input.a.clone(new Int32Array(this.working, 0, 4)),
+    b:this.input.b.clone(new Int32Array(this.working, 16, 4)),
+    c:this.input.c.clone(new Int32Array(this.working, 32, 4)),
+    d:this.input.d.clone(new Int32Array(this.working, 48, 4))
   };
   var i = -1;
   while (++i < 10) {
     // do the strait round
-    out = this.quarterRound(out.a, out.b, out.c, out.d);
+    this.quarterRound(out.a, out.b, out.c, out.d);
     // swizzle over to diagnal
-    out.b = SIMD.int32x4.swizzle(out.b, 1, 2, 3, 0);
-    out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
-    out.d = SIMD.int32x4.swizzle(out.d, 3, 0, 1, 2);
+    out.b.swizzle(1, 2, 3, 0);
+    out.c.swizzle(2, 3, 0, 1);
+    out.d.swizzle(3, 0, 1, 2);
     // do the diagnal one
-    out = this.quarterRound(out.a, out.b, out.c, out.d);
-    out.d = SIMD.int32x4.swizzle(out.d, 1, 2, 3, 0);
-    out.c = SIMD.int32x4.swizzle(out.c, 2, 3, 0, 1);
-    out.b = SIMD.int32x4.swizzle(out.b, 3, 0, 1, 2);
+    this.quarterRound(out.a, out.b, out.c, out.d);
+    out.d .swizzle(1, 2, 3, 0);
+    out.c.swizzle(2, 3, 0, 1);
+    out.b.swizzle(3, 0, 1, 2);
   }
-  out.a = SIMD.int32x4.add(out.a, this.input.a);
-  out.b = SIMD.int32x4.add(out.b, this.input.b);
-  out.c = SIMD.int32x4.add(out.c, this.input.c);
-  out.d = SIMD.int32x4.add(out.d, this.input.d);
+  out.a.add(this.input.a);
+  out.b.add(this.input.b);
+  out.c.add(this.input.c);
+  out.d.add(this.input.d);
   toNodeBuffer(this.output, 0, out.a);
   toNodeBuffer(this.output, 4, out.b);
   toNodeBuffer(this.output, 8, out.c);
@@ -108,7 +98,7 @@ Chacha20.prototype.getBytes = function(len) {
     // this does 20 rounds and fills up a buffer named output
     this.rounds();
     // increment the counter
-    this.input.d =  SIMD.int32x4.withX(this.input.d, this.input.d.x + 1);
+    this.input.d.withX(this.input.d.x + 1);
     // we have gone through all the int32 numbers back to 0
     if (!this.input.d.x) {
       throw new Error('counter is exausted');

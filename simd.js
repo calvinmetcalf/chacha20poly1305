@@ -29,18 +29,41 @@ exports.int32x4 = {};
   * @param {integer} 32-bit value used for w lane.
   * @constructor
   */
-exports.int32x4 = function(x, y, z, w) {
+exports.int32x4 = function(x, y, z, w, arr) {
 
   if (!(this instanceof exports.int32x4)) {
-    return new exports.int32x4(x, y, z, w);
+    return new exports.int32x4(x, y, z, w, arr);
   }
-
-  this.x = x|0;
-  this.y = y|0;
-  this.z = z|0;
-  this.w = w|0;
+  this._buff = arr || new Int32Array(4);
+  this._buff[0] = x;
+  this._buff[1] = y;
+  this._buff[2] = z;
+  this._buff[3] = w;
 };
 
+Object.defineProperty(exports.int32x4.prototype, 'x', {
+  get: function () {
+    return this._buff[0];
+  }
+});
+
+Object.defineProperty(exports.int32x4.prototype, 'y', {
+  get: function () {
+    return this._buff[1];
+  }
+});
+
+Object.defineProperty(exports.int32x4.prototype, 'z', {
+  get: function () {
+    return this._buff[2];
+  }
+});
+
+Object.defineProperty(exports.int32x4.prototype, 'w', {
+  get: function () {
+    return this._buff[3];
+  }
+});
 
 /**
   * @param {int32x4} a An instance of int32x4.
@@ -49,6 +72,13 @@ exports.int32x4 = function(x, y, z, w) {
   */
 exports.int32x4.or = function(a, b) {
   return exports.int32x4(a.x | b.x, a.y | b.y, a.z | b.z, a.w | b.w);
+};
+exports.int32x4.prototype.or = function(b) {
+  this._buff[0] |= b.x;
+  this._buff[1] |= b.y;
+  this._buff[2] |= b.z;
+  this._buff[3] |= b.w;
+  return this;
 };
 
 /**
@@ -60,7 +90,13 @@ exports.int32x4.xor = function(a, b) {
   return exports.int32x4(a.x ^ b.x, a.y ^ b.y, a.z ^ b.z, a.w ^ b.w);
 };
 
-
+exports.int32x4.prototype.xor = function(b) {
+  this._buff[0] ^= b.x;
+  this._buff[1] ^= b.y;
+  this._buff[2] ^= b.z;
+  this._buff[3] ^= b.w;
+  return this;
+};
 
 /**
   * @param {int32x4} a An instance of int32x4.
@@ -70,7 +106,13 @@ exports.int32x4.xor = function(a, b) {
 exports.int32x4.add = function(a, b) {
   return exports.int32x4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
 };
-
+exports.int32x4.prototype.add = function(b) {
+  this._buff[0] += b.x;
+  this._buff[1] += b.y;
+  this._buff[2] += b.z;
+  this._buff[3] += b.w;
+  return this;
+};
 /**
   * @param {int32x4} a An instance of int32x4.
   * @param {int32x4} b An instance of int32x4.
@@ -80,6 +122,35 @@ exports.int32x4.sub = function(a, b) {
   return exports.int32x4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
 };
 
+exports.int32x4.prototype.sub = function(b) {
+  this._buff[0] -= b.x;
+  this._buff[1] -= b.y;
+  this._buff[2] -= b.z;
+  this._buff[3] -= b.w;
+  return this;
+};
+
+exports.int32x4.prototype.shiftRightLogical = function (b) {
+  this._buff[0] >>>= b.x;
+  this._buff[1] >>>= b.y;
+  this._buff[2] >>>= b.z;
+  this._buff[3] >>>= b.w;
+  return this;
+};
+exports.int32x4.prototype.shiftRightLogicalBy = function (b) {
+  this._buff[0] = b.x >>> this._buff[0] ;
+  this._buff[1] = b.y >>> this._buff[1];
+  this._buff[2] = b.z >>> this._buff[2]; 
+  this._buff[3] = b.w >>> this._buff[3];
+  return this;
+};
+exports.int32x4.prototype.shiftLeft =function (b) {
+  this._buff[0] <<= b.x;
+  this._buff[1] <<= b.y;
+  this._buff[2] <<= b.z;
+  this._buff[3] <<= b.w;
+  return this;
+};
 
 /**
   * @param {int32x4} t An instance of float32x4 to be swizzled.
@@ -98,13 +169,33 @@ exports.int32x4.swizzle = function(t, x, y, z, w) {
   return exports.int32x4(storage[x], storage[y], storage[z], storage[w]);
 };
 
-
+exports.int32x4.prototype.swizzle = function(x, y, z, w) {
+  var storage = i32x4;
+  storage[0] = this.x;
+  storage[1] = this.y;
+  storage[2] = this.z;
+  storage[3] = this.w;
+  this._buff[0] = storage[x];
+  this._buff[1] = storage[y];
+  this._buff[2] = storage[z];
+  this._buff[3] = storage[w];
+  return this;
+};
 /**
   * @param {int32x4} t An instance of int32x4.
   * @param {integer} 32-bit value used for x lane.
   * @return {int32x4} New instance of int32x4 with the values in t and
   * x lane replaced with {x}.
   */
+
 exports.int32x4.withX = function(t, x) {
   return exports.int32x4(x, t.y, t.z, t.w);
+};
+exports.int32x4.prototype.withX = function(x) {
+  this._buff[0] = x;
+  return this;
+};
+
+exports.int32x4.prototype.clone = function(arr) {
+  return new exports.int32x4(this.x, this.y, this.z, this.w, arr);
 };
