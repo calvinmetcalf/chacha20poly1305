@@ -65,7 +65,8 @@ Chacha20.prototype.makeBlock = function (output, start) {
   i = -1;
   // copy working buffer into output
   while (++i < 16) {
-    output.writeUInt32LE(fixInt(this.buffer[i] + this.input[i]), start);
+    this.buffer[i] += this.input[i];
+    output.writeUInt32LE(this.buffer[i], start);
     start += 4;
   }
 
@@ -74,9 +75,9 @@ Chacha20.prototype.makeBlock = function (output, start) {
     throw new Error('counter is exausted');
   }
 };
-Chacha20.prototype.keystream = function(dst) {
+Chacha20.prototype.getBytes = function(len) {
   var dpos = 0;
-  var len = dst.length;
+  var dst = new Buffer(len);
   var cacheLen = 64 - this.cachePos;
   if (cacheLen) {
     if (cacheLen >= len) {
@@ -109,8 +110,11 @@ Chacha20.prototype.keystream = function(dst) {
   throw new Error('something bad happended');
 };
 
-Chacha20.prototype.getBytes = function(len) {
-  var out = new Buffer(len);
-  this.keystream(out);
-  return out;
+Chacha20.prototype.keystream = function(dst, len) {
+  var pad = this.getBytes(len);
+  var i = -1;
+  pad.copy(dst, 0, len);
+  while (++i < len) {
+    dst[i] = pad[i];
+  }
 };
