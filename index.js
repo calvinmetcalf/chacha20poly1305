@@ -67,6 +67,9 @@ Cipher.prototype.setAAD = function (aad) {
 };
 Cipher.prototype._transform = function (chunk, _, next) {
   var len = chunk.length;
+  if (!len) {
+    return next();
+  }
   this.clen += len;
   var pad = this.chacha.getBytes(len);
   var i = -1;
@@ -127,6 +130,9 @@ function ChaChaStream (key, iv) {
 }
 ChaChaStream.prototype._transform = function (chunk, _, next) {
   var len = chunk.length;
+  if (!len) {
+    return next();
+  }
   var pad = this.chacha.getBytes(len);
   var i = -1;
   while (++i < len) {
