@@ -10,8 +10,6 @@ function ROTATE(v, c) {
 }
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
-  key = new Buffer(key);
-  nonce = new Buffer(nonce);
   this.input = new Uint32Array(16);
 
   // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
@@ -31,83 +29,88 @@ function Chacha20(key, nonce) {
   this.input[13] = nonce.readUInt32LE(0);
   this.input[14] = nonce.readUInt32LE(4);
   this.input[15] = nonce.readUInt32LE(8);
-  this.cache = new Buffer(64);
-  this.cacheLen = 0;
-  this.cacheStart = 0;
-  this.cacheEnd = 0;
+  this.cachePos = 64;
+  this.buffer = new Uint32Array(16);
+  this.output = new Buffer(64);
 }
 
-Chacha20.prototype.quarterRound = function(x, a, b, c, d) {
+Chacha20.prototype.quarterRound = function(a, b, c, d) {
+  var x = this.buffer;
   x[a] += x[b]; x[d] = ROTATE(x[d] ^ x[a], 16);
   x[c] += x[d]; x[b] = ROTATE(x[b] ^ x[c], 12);
   x[a] += x[b]; x[d] = ROTATE(x[d] ^ x[a],  8);
   x[c] += x[d]; x[b] = ROTATE(x[b] ^ x[c],  7);
 };
+Chacha20.prototype.makeBlock = function (output, start) {
+  var i = -1;
+  // copy input into working buffer
+  while (++i < 16) {
+    this.buffer[i] = this.input[i];
+  }
+  i = -1;
+  while (++i < 10) {
+    // straight round
+    this.quarterRound(0, 4, 8,12);
+    this.quarterRound(1, 5, 9,13);
+    this.quarterRound(2, 6,10,14);
+    this.quarterRound(3, 7,11,15);
 
-Chacha20.prototype.getBytes = function(len) {
+
+    //diaganle round
+    this.quarterRound(0, 5,10,15);
+    this.quarterRound(1, 6,11,12);
+    this.quarterRound(2, 7, 8,13);
+    this.quarterRound(3, 4, 9,14);
+  }
+  i = -1;
+  // copy working buffer into output
+  while (++i < 16) {
+    output.writeUInt32LE(fixInt(this.buffer[i] + this.input[i]), start);
+    start += 4;
+  }
+
+  this.input[12]++;
+  if (!this.input[12]) {
+    throw new Error('counter is exausted');
+  }
+};
+Chacha20.prototype.keystream = function(dst) {
   var dpos = 0;
-  var dst = new Buffer(len);
-  dst.fill(0);
-  var cacheLen = this.cacheEnd - this.cacheStart;
+  var len = dst.length;
+  var cacheLen = 64 - this.cachePos;
   if (cacheLen) {
     if (cacheLen >= len) {
-      this.cache.copy(dst, 0, this.cacheStart, this.cacheEnd);
-      this.cacheStart += len;
+      this.output.copy(dst, 0, this.cachePos, 64);
+      this.cachePos += len;
       return dst;
     } else {
-      this.cache.copy(dst, 0, this.cacheStart, this.cacheStart + cacheLen);
+      this.output.copy(dst, 0, this.cachePos, 64);
       len -= cacheLen;
       dpos += cacheLen;
-      this.cacheStart = this.cacheEnd = 0;
+      this.cachePos = 64;
     }
   }
-  var x = new Uint32Array(16);
-  var output = new Buffer(64);
-  var i, spos = 0;
 
   while (len > 0 ) {
-    for (i = 16; i--;) x[i] = this.input[i];
-    for (i = 20; i > 0; i -= 2) {
-      this.quarterRound(x, 0, 4, 8,12);
-      this.quarterRound(x, 1, 5, 9,13);
-      this.quarterRound(x, 2, 6,10,14);
-      this.quarterRound(x, 3, 7,11,15);
-
-      this.quarterRound(x, 0, 5,10,15);
-      this.quarterRound(x, 1, 6,11,12);
-      this.quarterRound(x, 2, 7, 8,13);
-      this.quarterRound(x, 3, 4, 9,14);
-    }
-    var _i;
-    for (i = 16; i--;) {
-      output.writeUInt32LE(fixInt(x[i] + this.input[i]), 4*i);
-    }
-
-    this.input[12] += 1;
-    if (!this.input[12]) {
-      throw new Error('counter is exausted');
-    }
+    
     if (len <= 64) {
-      output.copy(dst, dpos, 0, len);
+      this.makeBlock(this.output, 0);
+      this.output.copy(dst, dpos, 0, len);
       if (len < 64) {
-        output.copy(this.cache, 0, len);
-        this.cacheEnd = 64 - len;
-        this.cacheStart = 0;
+        this.cachePos = len;
       }      
       return dst;
+    } else {
+      this.makeBlock(dst, dpos);
     }
-    output.copy(dst, dpos);
     len -= 64;
     dpos += 64;
   }
-  return dst;
+  throw new Error('something bad happended');
 };
 
-Chacha20.prototype.keystream = function(dst, len) {
-  var pad = this.getBytes(len);
-  var i = -1;
-  pad.copy(dst, 0, len);
-  while (++i < len) {
-    dst[i] = pad[i];
-  }
+Chacha20.prototype.getBytes = function(len) {
+  var out = new Buffer(len);
+  this.keystream(out);
+  return out;
 };
