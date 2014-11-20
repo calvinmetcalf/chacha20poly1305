@@ -194,6 +194,7 @@ function chacha20_encryption_test() {
   });
 }
 test('strings', function (t) {
+  t.plan(1);
     var key = new Buffer(256/8);
     var iv = new Buffer(96/8);
     key.fill(0);
@@ -202,12 +203,8 @@ test('strings', function (t) {
     //var cha2 = chacha2.chacha20(key, iv);
     var inputs = ['asdfasd', 'asdfasfda', 'asdfkaslda'];
     var out = new Array(3);
-
-  
-
-out[0] = cha1.update(inputs[0]);
-out[1] = cha1.update(inputs[1]);
-out[2] = cha1.update(inputs[2]);
-t.equals(out.length, 3);
-t.end();
+    out[0] = cha1.update(inputs[0]);
+    out[1] = cha1.update(inputs[1]);
+    out[2] = cha1.update(inputs[2]);
+    t.equals(out.length, 3);
 });
