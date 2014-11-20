@@ -26,16 +26,11 @@ function Chacha20(key, nonce) {
   this.input[10] = key.readUInt32LE(24);
   this.input[11] = key.readUInt32LE(28);
   this.input[12] = 0;
-  if (nonce.length === 8) {
-    this.input[13] =0;
-    this.input[14] = nonce.readUInt32LE(0);
-    this.input[15] = nonce.readUInt32LE(4);
-  } else {
 
-    this.input[13] = nonce.readUInt32LE(0);
-    this.input[14] = nonce.readUInt32LE(4);
-    this.input[15] = nonce.readUInt32LE(8);
-  }
+  this.input[13] = nonce.readUInt32LE(0);
+  this.input[14] = nonce.readUInt32LE(4);
+  this.input[15] = nonce.readUInt32LE(8);
+  
   this.cachePos = 64;
   this.buffer = new Uint32Array(16);
   this.output = new Buffer(64);
@@ -99,7 +94,6 @@ Chacha20.prototype.getBytes = function(len) {
     }
   }
   while (len > 0 ) {
-    
     if (len <= 64) {
       this.makeBlock(this.output, 0);
       this.output.copy(dst, dpos, 0, len);
