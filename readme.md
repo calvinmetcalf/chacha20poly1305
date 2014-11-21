@@ -2,7 +2,7 @@ ChaCha [![Build Status](https://travis-ci.org/calvinmetcalf/chacha20poly1305.svg
 ====
 
 
-ChaCha20 Poly1305 implementation based on this [repo](https://github.com/devi/chacha20poly1305), test vectors are from this [ietf draft](https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01).  Note there are 2 versions of ChaCha20, the origional by D. Bernstein (with vectors in [this ietf draft](http://tools.ietf.org/html/draft-strombergson-chacha-test-vectors-01)) and a modified version with a longer nonce and shorter counter.  This is the latter version, which is the one the ietf seam to have standardized (if I implemented the wrong version, open an issue, it's an easy fix).
+ChaCha20 Poly1305 implementation based on this [repo](https://github.com/devi/chacha20poly1305), test vectors are from this [ietf draft](https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-03) and boringssl.  Note there are 2 versions of the chacha20/poly1305 aead, an [earlier draft](https://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04) and a modified version with a longer nonce, shorter counter and different tag generation.  This is the more recent version, boringssl implemented the older version which is also included.
 
 API
 ===
@@ -46,3 +46,14 @@ var hmac =  chacha.createHmac(key);
 ```
 
 API is identical to an hmac in node, so it's a stream with update and digest methods.
+
+# Legacy Aead
+
+A variant version of the aead that is compatible with boringssl.
+
+```js
+var cipher =  new chacha.AeadLegacy(key, nonce);
+var decipher =  new chacha.AeadLegacy(key, nonce, true);
+```
+
+The third parameter is whether it should decipher, otherwise identical to createCipher/createDecipher. Doesn't implement variable length tags.
