@@ -25,6 +25,7 @@ function Chacha20(key, nonce) {
   this.input[9] = key.readUInt32LE(20);
   this.input[10] = key.readUInt32LE(24);
   this.input[11] = key.readUInt32LE(28);
+
   this.input[12] = 0;
 
   this.input[13] = nonce.readUInt32LE(0);
@@ -108,13 +109,4 @@ Chacha20.prototype.getBytes = function(len) {
     dpos += 64;
   }
   throw new Error('something bad happended');
-};
-
-Chacha20.prototype.keystream = function(dst, len) {
-  var pad = this.getBytes(len);
-  var i = -1;
-  pad.copy(dst, 0, len);
-  while (++i < len) {
-    dst[i] = pad[i];
-  }
 };

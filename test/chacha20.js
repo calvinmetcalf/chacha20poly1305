@@ -89,15 +89,14 @@ function chacha20_block_test() {
         nonce = fromHex(testVectors[i].nonce),
         counter = testVectors[i].counter,
         expected = fromHex(testVectors[i].expected),
-        len = expected.length,
-        output = new Buffer(len);
+        len = expected.length;
 
     var ctx = new Chacha20(key, nonce);
     if (counter) {
       ctx.input[12] = counter;
     }
 
-    ctx.keystream(output, len);
+    var output = ctx.getBytes(len);
 
     bytesEqual(output, expected, t);
   }
@@ -174,14 +173,13 @@ function chacha20_encryption_test() {
         plaintext = fromHex(testVectors[i].plaintext),
         expected = fromHex(testVectors[i].expected),
         len = plaintext.length,
-        buf = new Buffer(len),
         output = new Buffer(len);
 
     var ctx = new Chacha20(key, nonce);
     if (counter) {
       ctx.input[12] = counter;
     }
-    ctx.keystream(buf, len);
+    var buf = ctx.getBytes(len);
 
     for (var j = 0; j < len; j++) {
       output[j] = buf[j] ^ plaintext[j];
