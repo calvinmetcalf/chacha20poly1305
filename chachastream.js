@@ -11,15 +11,10 @@ function ChaChaStream (key, iv) {
   this.chacha = new Chacha20(key, iv);
 }
 ChaChaStream.prototype._transform = function (chunk, _, next) {
-  var len = chunk.length;
-  if (!len) {
+  if (!chunk.length) {
     return next();
   }
-  var pad = this.chacha.getBytes(len);
-  var i = -1;
-  while (++i < len) {
-    pad[i] ^= chunk[i];
-  }
-  this.push(pad);
+  this.chacha.xorBuffer(chunk);
+  this.push(chunk);
   next();
 };

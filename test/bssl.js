@@ -22,7 +22,7 @@ fixtures.forEach(function (fixture, i) {
       cipher.setAAD(ad);
     }
     var output = cipher.update(plain);
-    t.equals(output.toString('hex'), ciphertext.toString('hex'), 'encypt it correctly');
+    t.equals(output.toString('hex'), ciphertext.toString('hex'), 'encrypt it correctly');
     cipher.final();
     var atag = cipher.getAuthTag();
     var outTag = cipher.getAuthTag();
@@ -32,6 +32,6 @@ fixtures.forEach(function (fixture, i) {
       decipher.setAAD(ad);
     }
     var poutput = decipher.update(ciphertext);
-    t.equals(poutput.toString('hex'), plain.toString('hex'), 'deencypt it correctly');
+    t.equals(poutput.toString('hex'), plain.toString('hex'), 'decrypt it correctly');
   });
 });

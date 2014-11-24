@@ -8,7 +8,13 @@ function CipherBase() {
   Transform.call(this);
 }
 CipherBase.prototype.update = function (data, inputEnd, outputEnc) {
-  this.write(data, inputEnd);
+  if (typeof data === 'string') {
+    this.write(data, inputEnd);
+  } else {
+    var out = new Buffer(data.length);
+    data.copy(out);
+    this.write(out);
+}
   var outData = new Buffer('');
   var chunk;
   while ((chunk = this.read())) {
