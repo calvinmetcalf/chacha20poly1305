@@ -26,12 +26,6 @@ Cipher.prototype.setAAD = function (aad) {
   }
   this.alen += aad.length;
   this.poly.update(aad);
-  // var padding = new Buffer(padAmount(this.alen));
-  // if (padding.length) {
-  //   padding.fill(0);
-  //   this.poly.update(padding);
-  // }
-  //this.poly.update(len);
 };
 Cipher.prototype._flushlentag = function () {
   this._hasData = true;
@@ -49,17 +43,14 @@ Cipher.prototype._transform = function (chunk, _, next) {
     return next();
   }
   this.clen += len;
-  var pad = this.chacha.getBytes(len);
-  var i = -1;
-  while (++i < len) {
-    pad[i] ^= chunk[i];
-  }
   if (this._decrypt) {
     this.poly.update(chunk);
-  } else {
-    this.poly.update(pad);
   }
-  this.push(pad);
+  this.chacha.xorBuffer(chunk);
+  if (!this._decrypt) {
+    this.poly.update(chunk);
+  }
+  this.push(chunk);
   next();
 };
 Cipher.prototype._flush = function (next) {

@@ -34,6 +34,7 @@ function Chacha20(key, nonce) {
   
   this.cachePos = 64;
   this.buffer = new Uint32Array(16);
+  this.buffer8 = new Uint8Array(this.buffer.buffer);
   this.output = new Buffer(64);
 }
 
@@ -69,8 +70,10 @@ Chacha20.prototype.makeBlock = function (output, start) {
   // copy working buffer into output
   while (++i < 16) {
     this.buffer[i] += this.input[i];
-    output.writeUInt32LE(this.buffer[i], start);
-    start += 4;
+    output[start++] ^= this.buffer8[(i<<2)];
+    output[start++] ^= this.buffer8[(i<<2) + 1];
+    output[start++] ^= this.buffer8[(i<<2) + 2];
+    output[start++] ^= this.buffer8[(i<<2) + 3];
   }
 
   this.input[12]++;
@@ -79,32 +82,40 @@ Chacha20.prototype.makeBlock = function (output, start) {
   }
 };
 Chacha20.prototype.getBytes = function(len) {
+  var out = new Buffer(len);
+  out.fill(0);
+  this.xorBuffer(out);
+  return out;
+};
+
+Chacha20.prototype.xorBuffer = function (dst) { 
   var dpos = 0;
-  var dst = new Buffer(len);
+  var len = dst.length;
   var cacheLen = 64 - this.cachePos;
   if (cacheLen) {
     if (cacheLen >= len) {
-      this.output.copy(dst, 0, this.cachePos, 64);
-      this.cachePos += len;
+      while (dpos < len) {
+        dst[dpos++] ^= this.output[this.cachePos++];
+      }
       return dst;
     } else {
-      this.output.copy(dst, 0, this.cachePos, 64);
-      len -= cacheLen;
-      dpos += cacheLen;
-      this.cachePos = 64;
+      while (this.cachePos < 64) {
+        dst[dpos++] ^= this.output[this.cachePos++];
+        len--;
+      }
     }
   }
   while (len > 0 ) {
     if (len <= 64) {
+      this.output.fill(0);
       this.makeBlock(this.output, 0);
-      this.output.copy(dst, dpos, 0, len);
-      if (len < 64) {
-        this.cachePos = len;
+      this.cachePos = 0;
+      while (len--) {
+        dst[dpos++] ^= this.output[this.cachePos++];
       }
-      return dst;
-    } else {
-      this.makeBlock(dst, dpos);
+      return;
     }
+    this.makeBlock(dst, dpos);
     len -= 64;
     dpos += 64;
   }
