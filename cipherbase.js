@@ -1,33 +1,47 @@
+var Transform = require('readable-stream').Transform;
 var inherits = require('inherits');
 
-var Transform = require('readable-stream').Transform;
-
-inherits(CipherBase, Transform);
 module.exports = CipherBase;
-function CipherBase() {
+inherits(CipherBase, Transform);
+function CipherBase(digest) {
   Transform.call(this);
+  if (digest) {
+    this.digest = finalFunc;
+  } else {
+    this.final = finalFunc;
+  }
+
 }
-CipherBase.prototype.update = function (data, inputEnd, outputEnc) {
-  this.write(data, inputEnd);
-  var outData = new Buffer('');
-  var chunk;
-  while ((chunk = this.read())) {
-    outData = Buffer.concat([outData, chunk]);
+CipherBase.prototype.update = function (data, inputEnc, outputEnc) {
+  if (typeof data === 'string') {
+    data = new Buffer(data, inputEnc);
   }
+  var outData = this._update(data) || new Buffer('');
+  if (outputEnc) {
+    outData = outData.toString(outputEnc);
+  }
+  if (this.digest) {
+    return this;
+  }
+  return outData;
+};
+CipherBase.prototype._transform = function (data, _, next) {
+  this.push(this._update(data));
+  next();
+};
+CipherBase.prototype._flush = function (next) {
+  try {
+    this.push(this._final());
+  } catch(e) {
+    return next(e);
+  }
+  next();
+};
+function finalFunc (outputEnc) {
+  var outData = this._final() || new Buffer('');
   if (outputEnc) {
     outData = outData.toString(outputEnc);
   }
   return outData;
 };
-CipherBase.prototype.final = function (outputEnc) {
-  this.end();
-  var outData = new Buffer('');
-  var chunk;
-  while ((chunk = this.read())) {
-    outData = Buffer.concat([outData, chunk]);
-  }
-  if (outputEnc) {
-    outData = outData.toString(outputEnc);
-  }
-  return outData;
-};
+CipherBase.prototype._final = function () {};

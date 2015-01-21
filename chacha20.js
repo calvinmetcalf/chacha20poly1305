@@ -1,22 +1,16 @@
-var maxInt = Math.pow(2, 32);
-function fixInt(int) {
-  if (int >= maxInt) {
-    return int - maxInt;
-  }
-  return int;
-}
 function ROTATE(v, c) {
   return (v << c) | (v >>> (32 - c));
 }
+var constants = new Buffer('expand 32-byte k');
 module.exports = Chacha20;
 function Chacha20(key, nonce) {
   this.input = new Uint32Array(16);
 
   // https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-01#section-2.3
-  this.input[0] = 1634760805;
-  this.input[1] =  857760878;
-  this.input[2] = 2036477234;
-  this.input[3] = 1797285236;
+  this.input[0] = constants.readUInt32LE(0);
+  this.input[1] =  constants.readUInt32LE(4);
+  this.input[2] = constants.readUInt32LE(8);
+  this.input[3] = constants.readUInt32LE(12);
   this.input[4] = key.readUInt32LE(0);
   this.input[5] = key.readUInt32LE(4);
   this.input[6] = key.readUInt32LE(8);

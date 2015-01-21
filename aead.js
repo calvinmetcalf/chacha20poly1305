@@ -30,7 +30,7 @@ Cipher.prototype.setAAD = function (aad) {
     this.poly.update(padding);
   }
 };
-Cipher.prototype._transform = function (chunk, _, next) {
+Cipher.prototype._update = function (chunk) {
   if (!this._hasData) {
     this._hasData = true;
   }
@@ -49,10 +49,9 @@ Cipher.prototype._transform = function (chunk, _, next) {
   } else {
     this.poly.update(pad);
   }
-  this.push(pad);
-  next();
+  return pad;
 };
-Cipher.prototype._flush = function (next) {
+Cipher.prototype._final = function () {
   if (this._decrypt && !this.tag) {
     throw new Error('Unsupported state or unable to authenticate data');
   }
@@ -73,7 +72,6 @@ Cipher.prototype._flush = function (next) {
   } else {
     this.tag = tag;
   }
-  next();
 };
 Cipher.prototype.getAuthTag = function () {
   if(this._decrypt || this.tag === null) {

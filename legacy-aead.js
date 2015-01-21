@@ -1,7 +1,6 @@
 var inherits = require('inherits');
 var CipherBase = require('./cipherbase');
 var Chacha20 = require('./chacha20');
-var CipherBase = require('./cipherbase');
 var Poly1305 = require('./poly1305');
 inherits(Cipher, CipherBase);
 module.exports = Cipher;
@@ -40,13 +39,13 @@ Cipher.prototype._flushlentag = function () {
   len.writeUInt32LE(this.alen, 0);
   this.poly.update(len);
 };
-Cipher.prototype._transform = function (chunk, _, next) {
+Cipher.prototype._update = function (chunk) {
   if (!this._hasData) {
     this._flushlentag();
   }
   var len = chunk.length;
   if (!len) {
-    return next();
+    return;
   }
   this.clen += len;
   var pad = this.chacha.getBytes(len);
@@ -59,10 +58,9 @@ Cipher.prototype._transform = function (chunk, _, next) {
   } else {
     this.poly.update(pad);
   }
-  this.push(pad);
-  next();
+  return pad;
 };
-Cipher.prototype._flush = function (next) {
+Cipher.prototype._final = function () {
   if (this._decrypt && !this.tag) {
     throw new Error('Unsupported state or unable to authenticate data');
   }
@@ -86,7 +84,6 @@ Cipher.prototype._flush = function (next) {
   } else {
     this.tag = tag;
   }
-  next();
 };
 Cipher.prototype.getAuthTag = function () {
   if(this._decrypt || this.tag === null) {
