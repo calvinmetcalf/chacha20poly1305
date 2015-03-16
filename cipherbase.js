@@ -4,7 +4,6 @@ var inherits = require('inherits');
 module.exports = CipherBase;
 inherits(CipherBase, Transform);
 function CipherBase(digest) {
-  Transform.call(this);
   if (digest) {
     this.digest = finalFunc;
   } else {
@@ -12,6 +11,28 @@ function CipherBase(digest) {
   }
 
 }
+[
+  '_readableState',
+  '_writableState',
+  '_transformState'
+].forEach(function(prop) {
+  Object.defineProperty(CipherBase.prototype, prop, {
+    get: function() {
+      Transform.call(this);
+      return this[prop];
+    },
+    set: function(val) {
+      Object.defineProperty(this, prop, {
+        value: val,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
+    },
+    configurable: true,
+    enumerable: true
+  });
+});
 CipherBase.prototype.update = function (data, inputEnc, outputEnc) {
   if (typeof data === 'string') {
     data = new Buffer(data, inputEnc);

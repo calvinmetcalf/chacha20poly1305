@@ -88,7 +88,7 @@ Cipher.prototype.setAuthTag = function setAuthTag (tag) {
 };
 function padAmount(len) {
   var rem = len % 16;
-  if (rem === 16) {
+  if (!rem) {
     return 0;
   }
   return 16 - rem;
