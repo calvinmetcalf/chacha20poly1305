@@ -1,5 +1,4 @@
 var fixtures = require('./fixtures.json');
-console.log(fixtures.length);
 var test = require('tape');
 var chacha = require('../').AeadLegacy;
 
