@@ -4,6 +4,8 @@ ChaCha [![Build Status](https://travis-ci.org/calvinmetcalf/chacha20poly1305.svg
 
 ChaCha20 Poly1305 implementation based on this [repo](https://github.com/devi/chacha20poly1305), test vectors are from this [ietf draft](https://tools.ietf.org/html/draft-irtf-cfrg-chacha20-poly1305-03) and boringssl.  Note there are 2 versions of the chacha20/poly1305 aead, an [earlier draft](https://tools.ietf.org/html/draft-agl-tls-chacha20poly1305-04) and a modified version with a longer nonce, shorter counter and different tag generation.  This is the more recent version, boringssl implemented the older version which is also included.
 
+By default in node it attempts to use [native bindings](https://github.com/calvinmetcalf/chacha-native) and falls back to using the pure js implimentation. In the browser it defaults to the pure js one.  To use the pure js one in node `require('/chacha/browser');`.
+
 API
 ===
 
