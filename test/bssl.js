@@ -1,7 +1,7 @@
 var fixtures = require('./fixtures.json');
 console.log(fixtures.length);
 var test = require('tape');
-var chacha = require('../legacy-aead');
+var chacha = require('../').AeadLegacy;
 
 fixtures.forEach(function (fixture, i) {
   // if ((new Buffer(fixture.TAG, 'hex')).length !== 16) {

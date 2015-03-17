@@ -3,6 +3,7 @@
   "version": "1.1.2",
   "description": "ChaCha20 Poly1305 auth cipher with a node api in pure js",
   "main": "index.js",
+  "browser": "browser.js",
   "scripts": {
     "test": "tape test/*.js | tspec"
   },
@@ -30,5 +31,8 @@
   "dependencies": {
     "inherits": "^2.0.1",
     "readable-stream": "^1.0.33"
+  },
+  "optionalDependencies": {
+    "chacha-native": "^1.1.0"
   }
 }
