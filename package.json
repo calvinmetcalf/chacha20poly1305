@@ -33,6 +33,6 @@
     "readable-stream": "^1.0.33"
   },
   "optionalDependencies": {
-    "chacha-native": "^1.1.0"
+    "chacha-native": "^2.0.0"
   }
 }
