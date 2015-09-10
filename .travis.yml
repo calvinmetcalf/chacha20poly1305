@@ -6,3 +6,5 @@ node_js:
   - "2"
   - "3"
   - "4"
+env:
+  - CC=clang CXX=clang++ npm_config_clang=1
